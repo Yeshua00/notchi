@@ -22,7 +22,7 @@ final class NotchPanelManagerTests: XCTestCase {
         super.tearDown()
     }
 
-    func testMinimizeWhenIdleOffKeepsNormalCollapsedWithNoSessions() async throws {
+    func testMinimizeWhenIdleOffKeepsNormalCollapsedWithNoSessions() async {
         let defaults = makeDefaults()
         defaults.set(false, forKey: AppSettings.minimizeWhenIdleKey)
         let sessionCount = SessionCountBox(0)
@@ -34,7 +34,7 @@ final class NotchPanelManagerTests: XCTestCase {
         XCTAssertEqual(manager.activeCollapsedRect.width, manager.notchRect.width, accuracy: 0.5)
     }
 
-    func testMinimizeWhenIdleOnWithNoSessionsEntersCompactIdle() async throws {
+    func testMinimizeWhenIdleOnWithNoSessionsEntersCompactIdle() async {
         let defaults = makeDefaults()
         defaults.set(true, forKey: AppSettings.minimizeWhenIdleKey)
         let sessionCount = SessionCountBox(0)
@@ -47,7 +47,7 @@ final class NotchPanelManagerTests: XCTestCase {
         XCTAssertEqual(manager.activeCollapsedRect.width, manager.compactNotchRect.width, accuracy: 0.5)
     }
 
-    func testFirstSessionStartExitsCompactIdle() async throws {
+    func testFirstSessionStartExitsCompactIdle() async {
         let defaults = makeDefaults()
         defaults.set(true, forKey: AppSettings.minimizeWhenIdleKey)
         let sessionCount = SessionCountBox(0)
@@ -63,7 +63,7 @@ final class NotchPanelManagerTests: XCTestCase {
         XCTAssertEqual(manager.activeCollapsedRect.width, manager.notchRect.width, accuracy: 0.5)
     }
 
-    func testLastSessionEndReturnsToCompactIdleWhenCollapsed() async throws {
+    func testLastSessionEndReturnsToCompactIdleWhenCollapsed() async {
         let defaults = makeDefaults()
         defaults.set(true, forKey: AppSettings.minimizeWhenIdleKey)
         let sessionCount = SessionCountBox(1)
@@ -78,7 +78,7 @@ final class NotchPanelManagerTests: XCTestCase {
         XCTAssertEqual(manager.collapsedMode, .compactIdle)
     }
 
-    func testLastSessionEndWhileExpandedLeavesPanelOpenUntilCollapse() async throws {
+    func testLastSessionEndWhileExpandedLeavesPanelOpenUntilCollapse() async {
         let defaults = makeDefaults()
         defaults.set(true, forKey: AppSettings.minimizeWhenIdleKey)
         let sessionCount = SessionCountBox(1)
@@ -100,7 +100,7 @@ final class NotchPanelManagerTests: XCTestCase {
         XCTAssertEqual(manager.collapsedMode, .compactIdle)
     }
 
-    func testCompactHoverEntersPreviewImmediatelyAndReturnsAfterDelay() async throws {
+    func testCompactHoverEntersPreviewImmediatelyAndReturnsAfterDelay() async {
         let defaults = makeDefaults()
         defaults.set(true, forKey: AppSettings.minimizeWhenIdleKey)
         let sessionCount = SessionCountBox(0)
@@ -124,7 +124,7 @@ final class NotchPanelManagerTests: XCTestCase {
         XCTAssertEqual(manager.activeCollapsedRect.width, manager.compactNotchRect.width, accuracy: 0.5)
     }
 
-    func testMouseMovementOutsideCompactIdleDoesNotEnterPreview() async throws {
+    func testMouseMovementOutsideCompactIdleDoesNotEnterPreview() async {
         let defaults = makeDefaults()
         defaults.set(true, forKey: AppSettings.minimizeWhenIdleKey)
         let sessionCount = SessionCountBox(0)
@@ -137,6 +137,44 @@ final class NotchPanelManagerTests: XCTestCase {
 
         XCTAssertEqual(manager.collapsedMode, .compactIdle)
         XCTAssertEqual(manager.activeCollapsedRect.width, manager.compactNotchRect.width, accuracy: 0.5)
+    }
+
+    func testDisablingMinimizeWhenIdleFromHoverPreviewReturnsToNormalCollapsed() async {
+        let defaults = makeDefaults()
+        defaults.set(true, forKey: AppSettings.minimizeWhenIdleKey)
+        let sessionCount = SessionCountBox(0)
+        let manager = makeManager(sessionCount: sessionCount, defaults: defaults)
+
+        configureGeometry(for: manager)
+        manager.handleCollapsedHoverEntered()
+        XCTAssertEqual(manager.collapsedMode, .compactHoverPreview)
+
+        defaults.set(false, forKey: AppSettings.minimizeWhenIdleKey)
+        manager.refreshIdleMode()
+
+        XCTAssertEqual(manager.collapsedMode, .normalCollapsed)
+        XCTAssertEqual(manager.activeCollapsedRect.width, manager.notchRect.width, accuracy: 0.5)
+    }
+
+    func testExpandFromCompactHoverPreviewKeepsPanelOpenAndReturnsToCompactIdleOnCollapse() async {
+        let defaults = makeDefaults()
+        defaults.set(true, forKey: AppSettings.minimizeWhenIdleKey)
+        let sessionCount = SessionCountBox(0)
+        let manager = makeManager(sessionCount: sessionCount, defaults: defaults)
+
+        configureGeometry(for: manager)
+        manager.handleCollapsedHoverEntered()
+        XCTAssertEqual(manager.collapsedMode, .compactHoverPreview)
+
+        manager.expand()
+
+        XCTAssertTrue(manager.isExpanded)
+        XCTAssertEqual(manager.collapsedMode, .compactIdle)
+
+        manager.collapse()
+
+        XCTAssertFalse(manager.isExpanded)
+        XCTAssertEqual(manager.collapsedMode, .compactIdle)
     }
 
     private func makeDefaults() -> UserDefaults {

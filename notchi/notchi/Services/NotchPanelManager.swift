@@ -1,9 +1,5 @@
 import AppKit
 
-extension Notification.Name {
-    static let notchiPanelInteractionDidChange = Notification.Name("notchiPanelInteractionDidChange")
-}
-
 @MainActor
 @Observable
 final class NotchPanelManager {
@@ -99,7 +95,6 @@ final class NotchPanelManager {
         )
 
         refreshIdleMode()
-        notifyInteractionChange()
     }
 
     func setGeometryForTesting(
@@ -121,7 +116,6 @@ final class NotchPanelManager {
         )
 
         refreshIdleMode()
-        notifyInteractionChange()
     }
 
     func expand() {
@@ -129,7 +123,6 @@ final class NotchPanelManager {
         cancelPendingCompactIdleTask()
         isExpanded = true
         refreshIdleMode()
-        notifyInteractionChange()
     }
 
     func collapse() {
@@ -138,7 +131,6 @@ final class NotchPanelManager {
         isExpanded = false
         isPinned = false
         refreshIdleMode()
-        notifyInteractionChange()
     }
 
     func toggle() {
@@ -287,10 +279,5 @@ final class NotchPanelManager {
     private func setCollapsedMode(_ newMode: CollapsedMode) {
         guard collapsedMode != newMode else { return }
         collapsedMode = newMode
-        notifyInteractionChange()
-    }
-
-    private func notifyInteractionChange() {
-        notificationCenter.post(name: .notchiPanelInteractionDidChange, object: self)
     }
 }

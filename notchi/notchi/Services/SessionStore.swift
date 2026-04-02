@@ -174,8 +174,7 @@ final class SessionStore {
     private func postActiveSessionCountChange() {
         NotificationCenter.default.post(
             name: .sessionStoreActiveSessionCountDidChange,
-            object: self,
-            userInfo: ["count": activeSessionCount]
+            object: self
         )
     }
 

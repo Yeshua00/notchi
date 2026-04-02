@@ -2,7 +2,7 @@ import ServiceManagement
 import SwiftUI
 
 struct PanelSettingsView: View {
-    @AppStorage(AppSettings.minimizeWhenIdleKey) private var minimizeWhenIdle = AppSettings.minimizeWhenIdle
+    @AppStorage(AppSettings.minimizeWhenIdleKey) private var minimizeWhenIdle = false
     @State private var launchAtLogin = SMAppService.mainApp.status == .enabled
     @State private var hooksInstalled = HookInstaller.isInstalled()
     @State private var hooksError = false
