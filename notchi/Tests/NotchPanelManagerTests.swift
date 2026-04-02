@@ -113,11 +113,11 @@ final class NotchPanelManagerTests: XCTestCase {
         configureGeometry(for: manager)
         XCTAssertEqual(manager.collapsedMode, .compactIdle)
 
-        manager.handleCollapsedHoverEntered()
+        manager.handleMouseLocationChanged(compactHoverPoint(for: manager))
         XCTAssertEqual(manager.collapsedMode, .compactHoverPreview)
         XCTAssertEqual(manager.activeCollapsedRect.width, manager.notchRect.width, accuracy: 0.5)
 
-        manager.handleCollapsedHoverExited()
+        manager.handleMouseLocationChanged(outsideNotchPoint(for: manager))
         try? await Task.sleep(for: .milliseconds(30))
 
         XCTAssertEqual(manager.collapsedMode, .compactIdle)
@@ -146,7 +146,7 @@ final class NotchPanelManagerTests: XCTestCase {
         let manager = makeManager(sessionCount: sessionCount, defaults: defaults)
 
         configureGeometry(for: manager)
-        manager.handleCollapsedHoverEntered()
+        manager.handleMouseLocationChanged(compactHoverPoint(for: manager))
         XCTAssertEqual(manager.collapsedMode, .compactHoverPreview)
 
         defaults.set(false, forKey: AppSettings.minimizeWhenIdleKey)
@@ -163,7 +163,7 @@ final class NotchPanelManagerTests: XCTestCase {
         let manager = makeManager(sessionCount: sessionCount, defaults: defaults)
 
         configureGeometry(for: manager)
-        manager.handleCollapsedHoverEntered()
+        manager.handleMouseLocationChanged(compactHoverPoint(for: manager))
         XCTAssertEqual(manager.collapsedMode, .compactHoverPreview)
 
         manager.expand()
@@ -191,6 +191,14 @@ final class NotchPanelManagerTests: XCTestCase {
             notchRect: CGRect(x: 100, y: 0, width: 274, height: 38),
             panelRect: CGRect(x: 40, y: 0, width: 450, height: 450)
         )
+    }
+
+    private func compactHoverPoint(for manager: NotchPanelManager) -> CGPoint {
+        CGPoint(x: manager.compactNotchRect.midX, y: manager.compactNotchRect.midY)
+    }
+
+    private func outsideNotchPoint(for manager: NotchPanelManager) -> CGPoint {
+        CGPoint(x: manager.notchRect.maxX + 20, y: manager.notchRect.maxY + 20)
     }
 
     private func makeManager(

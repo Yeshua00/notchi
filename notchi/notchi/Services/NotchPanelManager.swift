@@ -12,12 +12,22 @@ final class NotchPanelManager {
     static let shared = NotchPanelManager()
 
     private static let compactNotchPaddingTotal: CGFloat = 16
+    private static func makeCompactNotchRect(notchSize: CGSize, notchRect: CGRect) -> CGRect {
+        CGRect(
+            x: notchRect.midX - ((notchSize.width + compactNotchPaddingTotal) / 2),
+            y: notchRect.minY,
+            width: notchSize.width + compactNotchPaddingTotal,
+            height: notchRect.height
+        )
+    }
+
     private let notificationCenter: NotificationCenter
     private let userDefaults: UserDefaults
     private let hoverExitDelay: Duration
     private let activeSessionCountProvider: @MainActor () -> Int
 
     private var observerTokens: [NSObjectProtocol] = []
+    private var cachedShouldUseCompactIdle = false
     private var pendingCompactIdleTask: Task<Void, Never>?
     private var mouseDownMonitor: EventMonitor?
     private var mouseMoveMonitor: EventMonitor?
@@ -59,6 +69,11 @@ final class NotchPanelManager {
         refreshIdleMode()
     }
 
+    isolated deinit {
+        observerTokens.forEach { notificationCenter.removeObserver($0) }
+        pendingCompactIdleTask?.cancel()
+    }
+
     func updateGeometry(for screen: NSScreen) {
         let newNotchSize = screen.notchSize
         let screenFrame = screen.frame
@@ -69,7 +84,6 @@ final class NotchPanelManager {
         let notchCenterX = screenFrame.origin.x + screenFrame.width / 2
         let sideWidth = max(0, newNotchSize.height - 12) + 24
         let notchTotalWidth = newNotchSize.width + sideWidth
-        let compactWidth = newNotchSize.width + Self.compactNotchPaddingTotal
 
         notchRect = CGRect(
             x: notchCenterX - notchTotalWidth / 2,
@@ -78,12 +92,7 @@ final class NotchPanelManager {
             height: newNotchSize.height
         )
 
-        compactNotchRect = CGRect(
-            x: notchCenterX - compactWidth / 2,
-            y: screenFrame.maxY - newNotchSize.height,
-            width: compactWidth,
-            height: newNotchSize.height
-        )
+        compactNotchRect = Self.makeCompactNotchRect(notchSize: newNotchSize, notchRect: notchRect)
 
         let panelSize = NotchConstants.expandedPanelSize
         let panelWidth = panelSize.width + NotchConstants.expandedPanelHorizontalPadding
@@ -97,6 +106,7 @@ final class NotchPanelManager {
         refreshIdleMode()
     }
 
+#if DEBUG
     func setGeometryForTesting(
         notchSize: CGSize,
         notchRect: CGRect,
@@ -108,15 +118,11 @@ final class NotchPanelManager {
         self.panelRect = panelRect
         self.systemNotchPath = systemNotchPath
 
-        compactNotchRect = CGRect(
-            x: notchRect.midX - ((notchSize.width + Self.compactNotchPaddingTotal) / 2),
-            y: notchRect.minY,
-            width: notchSize.width + Self.compactNotchPaddingTotal,
-            height: notchRect.height
-        )
+        compactNotchRect = Self.makeCompactNotchRect(notchSize: notchSize, notchRect: notchRect)
 
         refreshIdleMode()
     }
+#endif
 
     func expand() {
         guard !isExpanded else { return }
@@ -145,24 +151,24 @@ final class NotchPanelManager {
         isPinned.toggle()
     }
 
-    func handleCollapsedHoverEntered() {
+    private func handleCollapsedHoverEntered() {
         cancelPendingCompactIdleTask()
-        guard !isExpanded, shouldUseCompactIdle else { return }
+        guard !isExpanded, cachedShouldUseCompactIdle else { return }
 
         if collapsedMode == .compactIdle {
             setCollapsedMode(.compactHoverPreview)
         }
     }
 
-    func handleCollapsedHoverExited() {
+    private func handleCollapsedHoverExited() {
         guard !isExpanded,
-              shouldUseCompactIdle,
+              cachedShouldUseCompactIdle,
               collapsedMode == .compactHoverPreview else { return }
         scheduleCompactIdleReturn()
     }
 
     func handleMouseLocationChanged(_ location: CGPoint) {
-        guard !isExpanded, shouldUseCompactIdle else { return }
+        guard !isExpanded, cachedShouldUseCompactIdle else { return }
 
         switch collapsedMode {
         case .compactIdle:
@@ -181,7 +187,10 @@ final class NotchPanelManager {
     }
 
     func refreshIdleMode() {
-        if !shouldUseCompactIdle {
+        cachedShouldUseCompactIdle = userDefaults.bool(forKey: AppSettings.minimizeWhenIdleKey)
+            && activeSessionCountProvider() == 0
+
+        if !cachedShouldUseCompactIdle {
             cancelPendingCompactIdleTask()
             setCollapsedMode(.normalCollapsed)
             return
@@ -196,10 +205,6 @@ final class NotchPanelManager {
         if collapsedMode != .compactHoverPreview {
             setCollapsedMode(.compactIdle)
         }
-    }
-
-    private var shouldUseCompactIdle: Bool {
-        userDefaults.bool(forKey: AppSettings.minimizeWhenIdleKey) && activeSessionCountProvider() == 0
     }
 
     private func setupObservers() {
@@ -265,7 +270,7 @@ final class NotchPanelManager {
 
             await MainActor.run {
                 guard let self else { return }
-                guard !self.isExpanded, self.shouldUseCompactIdle else { return }
+                guard !self.isExpanded, self.cachedShouldUseCompactIdle else { return }
                 self.setCollapsedMode(.compactIdle)
             }
         }
